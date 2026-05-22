@@ -166,13 +166,19 @@ for ~$0.05-0.11 per paper.
 
 ## Testing
 
+The repo includes reference oracle data (derived extraction metadata) and a
+download script to fetch test papers from their original sources.
+
 ```bash
-# Extract test papers
+# Download test papers (40 papers from arxiv, ICSE 2026, CHI 2026)
+cd test_papers && bash download.sh && cd ..
+
+# Extract all test papers
 for pdf in test_papers/*.pdf; do
   ./target/release/paper-to-markdown "$pdf"
 done
 
-# Compare against reference oracle
+# Compare against reference oracle (20 papers with oracle data)
 for oracle in test_papers/oracle/*.json; do
   name=$(basename "$oracle" .json)
   echo -n "$name: "
@@ -194,7 +200,9 @@ scripts/
   clean_for_rag.py      — Optional LLM cleanup (OpenAI / Azure OpenAI)
   benchmark_blocks.py   — Reference oracle comparison tool
 
-test_papers/            — Test PDFs and reference oracle JSON files
+test_papers/
+  download.sh           — Downloads test PDFs from original sources
+  oracle/               — Reference oracle JSON files (derived extraction metadata)
 ```
 
 ## Dependencies
