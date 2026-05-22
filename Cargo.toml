@@ -1,0 +1,10 @@
+[package]
+name = "paper-to-markdown"
+version = "0.1.0"
+edition = "2024"
+description = "Fast, mostly LLM-free PDF to text extraction for RAG pipelines"
+license = "MIT"
+
+[dependencies]
+pdf-extract = "0.10"
+lopdf = { version = "0.38", default-features = false }
