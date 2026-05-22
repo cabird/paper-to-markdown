@@ -133,7 +133,7 @@ Variables are loaded from the environment and from .env in the current directory
     parser.add_argument("input", type=Path, help="Input markdown file (from paper-to-markdown)")
     parser.add_argument("-o", "--output", type=Path, default=None,
                         help="Output file (default: <input>_clean.md)")
-    parser.add_argument("-j", "--workers", type=int, default=5, help="Parallel workers (default: 5)")
+    parser.add_argument("-j", "--workers", type=int, default=10, help="Parallel workers (default: 10)")
     parser.add_argument("--model", type=str, default=DEFAULT_MODEL,
                         help=f"Model name (default: {DEFAULT_MODEL})")
     parser.add_argument("--azure", action="store_true", help="Use Azure OpenAI instead of OpenAI")

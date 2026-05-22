@@ -81,7 +81,7 @@ scripts/clean_for_rag.py <input.md> [-o output.md] [--azure] [--model NAME] [-j 
 | `-o`, `--output FILE` | Output file. Default: `<input>_clean.md` |
 | `--azure` | Use Azure OpenAI instead of OpenAI |
 | `--model NAME` | Model deployment name. Default: `gpt-5.4-mini` |
-| `-j`, `--workers N` | Parallel workers. Default: 5 |
+| `-j`, `--workers N` | Parallel workers. Default: 10 |
 
 ### API Key Setup
 
