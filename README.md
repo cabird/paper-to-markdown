@@ -109,29 +109,43 @@ Both models produce near-identical output and preserve original wording faithful
 
 ## Performance
 
-Tested on 38 academic papers across three sets:
+Tested on 40 academic papers across three sets:
 - 20 arxiv papers (single and multi-column, various fields)
-- 9 ICSE 2026 papers (software engineering, 2-column ACM format)
-- 9 CHI 2026 papers (HCI, mix of 1-column and 2-column ACM format)
+- 10 ICSE 2026 papers (software engineering, 2-column ACM format)
+- 10 CHI 2026 papers (HCI, mix of 1-column and 2-column ACM format)
 
 ### Extraction Quality
 
 | Metric | Result |
 |---|---|
-| Character match vs reference oracle | **93%** (20-paper benchmark) |
-| Papers rated "good for RAG" (no cleanup needed) | **82%** (31/38) |
-| Papers rated "usable" | **92%** (35/38) |
-| Papers with garbled/interleaved text | **0%** |
+| Character match vs reference oracle | **91%** (20-paper benchmark) |
+| Papers rated "great" or "good" for RAG | **78%** (31/40) |
+| Papers rated "usable" or better | **98%** (39/40) |
 | Extraction speed | 15-100ms per page |
+
+### Quality Breakdown (40-paper audit)
+
+Each paper was independently audited for RAG suitability:
+
+| Rating | Count | Description |
+|---|---|---|
+| 1 – Great | 12 | Clean extraction, excellent for RAG |
+| 2 – Good | 19 | Minor figure/table noise, fully usable |
+| 3 – Usable | 8 | Some fragmentation from formulas or charts, still works |
+| 4 – Poor | 1 | Significant corruption from undecodable chart fonts |
 
 ### Where It Struggles
 
-The remaining ~18% of papers that need LLM cleanup typically have:
+The papers that need LLM cleanup or scored lower typically have:
 
 - **Heavy figure/chart annotations**: PDFs where figure labels, axis values, and
   diagram text are placed as individual text objects overlapping body text. The
   extraction correctly separates them (no garbling), but short noise fragments
   like isolated words or numbers appear between paragraphs.
+
+- **Undecodable chart fonts**: Some visualization-heavy papers embed chart text
+  using custom font encodings that `pdf-extract` cannot decode, producing NUL
+  bytes in the output. Body text paragraphs are unaffected. (1 out of 40 papers)
 
 - **Complex tables**: Table cell text extracted as flat text without structure.
   The content is present but not formatted as a table.
