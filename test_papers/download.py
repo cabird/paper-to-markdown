@@ -35,7 +35,7 @@ PAPERS = {
     "icse_flaky_tests.pdf": "https://arxiv.org/pdf/2601.08998",
     "icse_cps_fuzzing.pdf": "https://arxiv.org/pdf/2601.05449",
     "icse_misbehavior.pdf": "https://arxiv.org/pdf/2512.18823",
-    "icse_autocrashfl.pdf": "https://arxiv.org/pdf/2510.22530",
+    "icse_code_review.pdf": "https://arxiv.org/pdf/2504.07459",
     "icse_perf_req.pdf": "https://arxiv.org/pdf/2511.03421",
     "icse_aibom.pdf": "https://arxiv.org/pdf/2510.07070",
     "icse_sat_linux.pdf": "https://raw.githubusercontent.com/SoftVarE-Group/Papers/main/2026/2026-ICSE-Kuiter.pdf",
@@ -48,7 +48,7 @@ PAPERS = {
     "chi_patient.pdf": "https://arxiv.org/pdf/2605.20205",
     "chi_twin_agents.pdf": "https://arxiv.org/pdf/2605.19838",
     "chi_xr_access.pdf": "https://arxiv.org/pdf/2602.17939",
-    "chi_raven.pdf": "https://arxiv.org/pdf/2510.06573",
+    "chi_haptic.pdf": "https://arxiv.org/pdf/2503.08569",
     "chi_deception.pdf": "https://arxiv.org/pdf/2604.15338",
     "chi_viz.pdf": "https://arxiv.org/pdf/2601.19237",
 }
