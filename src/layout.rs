@@ -743,9 +743,79 @@ const KNOWN_HEADINGS: &[&str] = &[
 ];
 
 pub fn detect_headings(blocks: &mut [Block], font_info: &FontInfo) {
-    // Cache text once per block
     let texts: Vec<String> = blocks.iter().map(|b| b.text()).collect();
 
+    // === Pass 1: Anchor on known headings to learn heading styles ===
+    // Find blocks that match known heading names and record their font sizes.
+    // This tells us what font size this paper uses for section headings.
+    let mut anchor_sizes: Vec<f64> = Vec::new();
+    let mut numbered_anchor_sizes: Vec<(f64, u8)> = Vec::new(); // (size, depth)
+
+    for (i, block) in blocks.iter().enumerate() {
+        if block.skip {
+            continue;
+        }
+        let text = texts[i].trim();
+        if text.is_empty() {
+            continue;
+        }
+        let is_short = block.lines.len() <= HEADING_MAX_LINES && text.len() < HEADING_MAX_CHARS;
+        if !is_short {
+            continue;
+        }
+
+        let clean = strip_numbering(text).to_lowercase();
+        let clean = clean.trim_end_matches('.').trim();
+        let size = block.dominant_size();
+
+        if KNOWN_HEADINGS.contains(&clean) && size > font_info.body_size * 0.9 {
+            anchor_sizes.push(size);
+
+            // If this known heading is numbered, record the numbering depth
+            if let Some(depth) = heading_depth(text) {
+                numbered_anchor_sizes.push((size, depth));
+            }
+        }
+    }
+
+    // Determine the heading font sizes from anchors
+    // Primary heading size = most common anchor size
+    // If we see numbered anchors at different depths with different sizes,
+    // we can distinguish heading levels
+    let primary_heading_size = if !anchor_sizes.is_empty() {
+        // Most common size among anchors
+        let mut size_counts: HashMap<i32, usize> = HashMap::new();
+        for &s in &anchor_sizes {
+            *size_counts.entry((s * 10.0).round() as i32).or_default() += 1;
+        }
+        size_counts
+            .into_iter()
+            .max_by_key(|(_, count)| *count)
+            .map(|(key, _)| key as f64 / 10.0)
+    } else {
+        None
+    };
+
+    // Build a size → level mapping from numbered anchors
+    // e.g., if "1 Introduction" is at 12pt (depth=1) and "1.1 Background" is at 10pt (depth=2),
+    // then 12pt → H2, 10pt → H3
+    let mut learned_levels: Vec<(f64, u8)> = Vec::new();
+    if !numbered_anchor_sizes.is_empty() {
+        let mut by_depth: HashMap<u8, Vec<f64>> = HashMap::new();
+        for &(size, depth) in &numbered_anchor_sizes {
+            by_depth.entry(depth).or_default().push(size);
+        }
+        let mut depths: Vec<u8> = by_depth.keys().copied().collect();
+        depths.sort();
+        for (rank, &depth) in depths.iter().enumerate() {
+            let sizes = &by_depth[&depth];
+            let avg_size = sizes.iter().sum::<f64>() / sizes.len() as f64;
+            let level = (rank as u8 + 2).min(4); // depth 0 → H2, depth 1 → H3, etc.
+            learned_levels.push((avg_size, level));
+        }
+    }
+
+    // === Pass 2: Apply heading detection using learned styles + original signals ===
     for (i, block) in blocks.iter_mut().enumerate() {
         if block.skip {
             continue;
@@ -758,21 +828,42 @@ pub fn detect_headings(blocks: &mut [Block], font_info: &FontInfo) {
 
         let size = block.dominant_size();
         let is_short = block.lines.len() <= HEADING_MAX_LINES && text.len() < HEADING_MAX_CHARS;
+        if !is_short {
+            continue;
+        }
 
-        // Signal 1: Font size tier
-        let mut level: u8 = font_info
-            .tiers
-            .iter()
-            .find(|(tier_size, _)| (size - tier_size).abs() < HEADING_SIZE_TOLERANCE)
-            .map(|(_, tier_level)| *tier_level)
-            .unwrap_or(0);
+        let mut level: u8 = 0;
 
-        // Signal 2: Numbered section heading
-        let numbered = text.starts_with(|c: char| c.is_ascii_digit())
-            || text.starts_with(|c: char| "IVXLC".contains(c));
+        // Signal 1: Learned heading style from anchors
+        // If this block's font size matches a learned heading level, use it
+        for &(learned_size, learned_level) in &learned_levels {
+            if (size - learned_size).abs() < HEADING_SIZE_TOLERANCE {
+                level = learned_level;
+                break;
+            }
+        }
 
-        // Signal 3: Known heading text
-        if level == 0 && is_short {
+        // Signal 2: Primary heading size from anchors (when no numbered anchors gave us levels)
+        if level == 0 {
+            if let Some(primary) = primary_heading_size {
+                if (size - primary).abs() < HEADING_SIZE_TOLERANCE {
+                    level = 2;
+                }
+            }
+        }
+
+        // Signal 3: Font size tier (original approach, fallback)
+        if level == 0 {
+            level = font_info
+                .tiers
+                .iter()
+                .find(|(tier_size, _)| (size - tier_size).abs() < HEADING_SIZE_TOLERANCE)
+                .map(|(_, tier_level)| *tier_level)
+                .unwrap_or(0);
+        }
+
+        // Signal 4: Known heading text (fallback for same-size headings)
+        if level == 0 {
             let clean = strip_numbering(text).to_lowercase();
             let clean = clean.trim_end_matches('.');
             if KNOWN_HEADINGS.contains(&clean) {
@@ -780,22 +871,24 @@ pub fn detect_headings(blocks: &mut [Block], font_info: &FontInfo) {
             }
         }
 
-        // Signal 4: All-caps short text
-        if level == 0 && is_short && text.len() > 3 {
+        // Signal 5: All-caps short text
+        if level == 0 && text.len() > 3 {
             let alpha: Vec<char> = text.chars().filter(|c| c.is_alphabetic()).collect();
             if alpha.len() > 2 && alpha.iter().all(|c| c.is_uppercase()) {
                 level = 2;
             }
         }
 
-        // Adjust for numbered heading depth (1. → H2, 1.1 → H3, 1.1.1 → H4)
+        // Adjust for numbered heading depth
+        let numbered = text.starts_with(|c: char| c.is_ascii_digit())
+            || text.starts_with(|c: char| "IVXLC".contains(c));
         if numbered && level > 1 {
             if let Some(depth) = heading_depth(text) {
                 level = level.min(2 + depth).min(4);
             }
         }
 
-        if level > 0 && is_short {
+        if level > 0 {
             block.heading_level = level.min(4);
         }
     }
